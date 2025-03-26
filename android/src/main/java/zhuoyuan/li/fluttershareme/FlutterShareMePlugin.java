@@ -1,12 +1,9 @@
 package zhuoyuan.li.fluttershareme;
 
 import android.app.Activity;
-import android.content.ActivityNotFoundException;
 import android.content.Intent;
-import android.content.pm.PackageManager;
 import android.net.Uri;
 import android.text.TextUtils;
-import android.util.Log;
 
 import androidx.annotation.NonNull;
 import androidx.core.content.FileProvider;
@@ -20,17 +17,14 @@ import com.facebook.share.widget.MessageDialog;
 import com.facebook.share.widget.ShareDialog;
 
 import java.io.File;
-import java.net.URL;
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin;
 import io.flutter.embedding.engine.plugins.activity.ActivityAware;
 import io.flutter.embedding.engine.plugins.activity.ActivityPluginBinding;
-import io.flutter.plugin.common.BinaryMessenger;
 import io.flutter.plugin.common.MethodCall;
 import io.flutter.plugin.common.MethodChannel;
 import io.flutter.plugin.common.MethodChannel.MethodCallHandler;
 import io.flutter.plugin.common.MethodChannel.Result;
-import io.flutter.plugin.common.PluginRegistry.Registrar;
 
 public class FlutterShareMePlugin implements MethodCallHandler, FlutterPlugin, ActivityAware {
 
@@ -38,28 +32,39 @@ public class FlutterShareMePlugin implements MethodCallHandler, FlutterPlugin, A
     private static CallbackManager callbackManager;
     private MethodChannel methodChannel;
 
-    public static void registerWith(Registrar registrar) {
-        final FlutterShareMePlugin instance = new FlutterShareMePlugin();
-        instance.onAttachedToEngine(registrar.messenger());
-        instance.activity = registrar.activity();
-    }
-
     @Override
-    public void onAttachedToEngine(FlutterPluginBinding binding) {
-        onAttachedToEngine(binding.getBinaryMessenger());
+    public void onAttachedToEngine(@NonNull FlutterPluginBinding binding) {
+        methodChannel = new MethodChannel(binding.getBinaryMessenger(), "flutter_share_me");
+        methodChannel.setMethodCallHandler(this);
+        callbackManager = CallbackManager.Factory.create();
     }
 
     @Override
     public void onDetachedFromEngine(@NonNull FlutterPluginBinding binding) {
-        methodChannel.setMethodCallHandler(null);
-        methodChannel = null;
-        activity = null;
+        if (methodChannel != null) {
+            methodChannel.setMethodCallHandler(null);
+            methodChannel = null;
+        }
     }
 
-    private void onAttachedToEngine(BinaryMessenger messenger) {
-        methodChannel = new MethodChannel(messenger, "flutter_share_me");
-        methodChannel.setMethodCallHandler(this);
-        callbackManager = CallbackManager.Factory.create();
+    @Override
+    public void onAttachedToActivity(@NonNull ActivityPluginBinding binding) {
+        this.activity = binding.getActivity();
+    }
+
+    @Override
+    public void onDetachedFromActivityForConfigChanges() {
+        this.activity = null;
+    }
+
+    @Override
+    public void onReattachedToActivityForConfigChanges(@NonNull ActivityPluginBinding binding) {
+        this.activity = binding.getActivity();
+    }
+
+    @Override
+    public void onDetachedFromActivity() {
+        this.activity = null;
     }
 
     @Override
@@ -133,8 +138,9 @@ public class FlutterShareMePlugin implements MethodCallHandler, FlutterPlugin, A
         if (shareDialog.canShow(content)) {
             shareDialog.show(content);
             result.success("success");
+        } else {
+            result.error("error", "Cannot share through messenger", "");
         }
-        result.error("error", "Cannot share through messenger", "");
     }
 
     private void shareWhatsApp(String imagePath, String msg, Result result, boolean isBusiness) {
